@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Feb 10 16:59:45 2016
-
-@author: s091644
-
-
 part 2
 function to calculate differences between reference and simulation
 part 3
-Small loop with Newton-Gauss optimization to determine new material parameters
-@author: joerik de Ruijter
+Small loop with Downhill simplex optimization to determine new material parameters
+@author: Joerik de Ruijter
 """
 
 from abaqus import *
@@ -37,11 +32,6 @@ from numpy import *
 from math import *
 import heapq
 #PART 1 ######################################################################################################################
-
-
-
-
-
 
 #PART 2 ######################################################################################################################
 
@@ -182,31 +172,29 @@ def CompareDisplacements(startINP,jobNameRef1,MaterialModuli,niteration):
   
     rpt_lines=readfile(newname+'_nodal'+'.rpt')
     (start,end)=findlines(rpt_lines,line_1,line_2)
-    Ulistmatch1=getdisplacement(start[0],end[0],rpt_lines,nodeRef1)
-
-    URef=URef1
-    Ulistmatch=Ulistmatch1
-    UDifabs = [abs((y-x)) for x, y in zip(Ulistmatch, URef)]
-    Udifabs = sum(UDifabs)/len(UDifabs)
+    Ulistmatch=getdisplacement(start[0],end[0],rpt_lines,nodeRef1)
+   
+    #calculate differences between Reference displacements and FEM displacements
+    UDifabs = [abs((y-x)) for x, y in zip(Ulistmatch, URef1)]
+    Averror = sum(UDifabs)/len(UDifabs)
  
 
     #write overview
     overviewFile = open('overview.rpt','a')
-    newOvLine = newname + '\t\t' + 'Shear modulus inner G = \t\t' + str(2*MaterialModuli[1]) + ' MPa'+ '\t\t'+ 'Shear modulus outer G = \t\t' + str(2*MaterialModuli[0]) + ' MPa' + '\t\t' + 'Udif'+ '\t\t' + str(Udifabs) + '\n'
+    newOvLine = newname + '\t\t' + 'Shear modulus inner G = \t\t' + str(2*MaterialModuli[1]) + ' MPa'+ '\t\t'+ 'Shear modulus outer G = \t\t' + str(2*MaterialModuli[0]) + ' MPa' + '\t\t' + 'Udif'+ '\t\t' + str(Averror) + '\n'
     overviewFile.write(newOvLine)	
     overviewFile.close()
-    print newname + '\t\t'+ str(Udifabs)
+    print newname + '\t\t'+ str(Averror)
 	
     #write new inpfiles
  
     niteration=niteration+1
-    return (Udifabs, niteration)	
-def DownhillSimplex(Start, slide, tol,ref,inp):
-   
+    return (Averror, niteration)	
 
+def DownhillSimplex(Start, slide, tol,ref,inp):
     j=1
     # Setup intial values
-    newXmin=[5,2.5]	
+    newXmin=[5,2.5]	#min boundaries
     n = len(Start)
     f = zeros(n+1)
     x = zeros((n+1,n))
@@ -214,8 +202,7 @@ def DownhillSimplex(Start, slide, tol,ref,inp):
     x[0] = Start
     	
     # Setup intial X range
-	
-    for i in range(1,n+1):
+   for i in range(1,n+1):
         x[i] = Start
         x[i,i-1] = Start[i-1] + slide
 	
@@ -296,9 +283,6 @@ def DownhillSimplex(Start, slide, tol,ref,inp):
                                    newX[i] = newXmin[i]+random.uniform(0,newXmin[i]*0.1)                              
                             (f[i],j) = CompareDisplacements(inp,ref,x[i],j)
 # Example Call
-
-
-
 (result,counter)=DownhillSimplex(array([25,12]),1,1e-6,'D40_1703_multi_lower_ref.inp','D40_1703_multi_lower.inp')
       
         
